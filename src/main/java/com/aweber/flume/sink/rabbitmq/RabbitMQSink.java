@@ -339,10 +339,10 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
                 rmqChannel.queueDeclare(queueName, false, false, false, mapQueue);
                 rmqChannel.queueBind(queueName, exchange, "");
 
-                logger.debug("Message (exchange: {}, queue: {}, x-delay: {}s)", exchange, queueName, headers.get("x-delay"));
+                // logger.debug("Message (exchange: {}, queue: {}, x-delay: {}s)", exchange, queueName, headers.get("x-delay"));
             }
 
-            logger.debug("{}", headers);
+            // logger.debug("{}", headers);
 
             rmqChannel.basicPublish(exchange, rk, mandatory, createProperties(headers), event.getBody());
         } catch (IOException ex) {
