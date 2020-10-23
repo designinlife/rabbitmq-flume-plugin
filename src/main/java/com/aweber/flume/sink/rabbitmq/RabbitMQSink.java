@@ -32,6 +32,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
     private static final String USER_KEY = "username";
     private static final String PASSWORD_KEY = "password";
     private static final String EXCHANGE_KEY = "exchange";
+    private static final String QUEUE_KEY = "queue-name";
     private static final String ROUTING_KEY = "routing-key";
     private static final String AUTO_PROPERTIES_KEY = "auto-properties";
     private static final String MANDATORY_PUBLISH_KEY = "mandatory-publish";
@@ -51,6 +52,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
     private static final String USER_ID_KEY = "user-id";
 
     private static final String DEFAULT_EXCHANGE = "amq.topic";
+    private static final String DEFAULT_QUEUE_NAME = "delayed_queue";
     private static final String DEFAULT_ROUTING_KEY = "";
 
     private static final String EVENT_EMPTY = "event.empty";
@@ -64,6 +66,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
     private static final String RABBITMQ_EXCEPTION_CONNECTION = "rabbitmq.exception.connection";
 
     private String exchange;
+    private String queueName;
     private String routingKey;
     private Boolean autoProperties;
     private Boolean mandatory;
@@ -96,6 +99,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         username = context.getString(USER_KEY, ConnectionFactory.DEFAULT_USER);
         password = context.getString(PASSWORD_KEY, ConnectionFactory.DEFAULT_PASS);
         exchange = context.getString(EXCHANGE_KEY, DEFAULT_EXCHANGE);
+        queueName = context.getString(QUEUE_KEY, DEFAULT_QUEUE_NAME);
         routingKey = context.getString(ROUTING_KEY, DEFAULT_ROUTING_KEY);
         autoProperties = context.getBoolean(AUTO_PROPERTIES_KEY, true);
         mandatory = context.getBoolean(MANDATORY_PUBLISH_KEY, false);
@@ -304,6 +308,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         if (connection == null) {
             connection = createRabbitMQConnection(factory);
             rmqChannel = createRabbitMQChannel();
+
             if (publisherConfirms) {
                 enablePublisherConfirms();
             }
@@ -323,19 +328,22 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         }
 
         try {
-            Map<String, Object> exchangeMap = new HashMap<>();
-            // exchangeMap.put("x-delayed-type", "direct");
-            exchangeMap.put("x-delayed-type", "fanout");
+            if (headers.containsKey("x-delay")) {
+                Map<String, Object> exchangeMap = new HashMap<>();
+                exchangeMap.put("x-delayed-type", "fanout"); // fanout, direct
 
-            Map<String, Object> mapQueue = new HashMap<>();
-            mapQueue.put("x-dead-letter-exchange", "delayed");
+                Map<String, Object> mapQueue = new HashMap<>();
+                mapQueue.put("x-dead-letter-exchange", "delayed");
 
-            logger.info("Message (x-delay: {}s)", headers.get("x-delay"));
-            logger.info("{}", headers);
+                rmqChannel.exchangeDeclare(exchange, "x-delayed-message", true, false, exchangeMap);
+                rmqChannel.queueDeclare(queueName, false, false, false, mapQueue);
+                rmqChannel.queueBind(queueName, exchange, "");
 
-            rmqChannel.exchangeDeclare(exchange, "x-delayed-message", true, false, exchangeMap);
-            rmqChannel.queueDeclare("delayed_queue", false, false, false, mapQueue);
-            rmqChannel.queueBind("delayed_queue", exchange, "");
+                logger.debug("Message (exchange: {}, queue: {}, x-delay: {}s)", exchange, queueName, headers.get("x-delay"));
+            }
+
+            logger.debug("{}", headers);
+
             rmqChannel.basicPublish(exchange, rk, mandatory, createProperties(headers), event.getBody());
         } catch (IOException ex) {
             logger.error("Error publishing event message: {}", ex.toString());
