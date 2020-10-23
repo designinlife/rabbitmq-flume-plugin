@@ -47,20 +47,20 @@ share common RabbitMQ connection parameters.
 
 The Source component has the following configuration options:
 
-Variable          | Default       | Description
------------------ | ------------- | -----------
-host              | ``localhost`` | The RabbitMQ host to connect to
-port              | ``5672``      | The port to connect on
-ssl               | ``false``     | Connect to RabbitMQ via SSL
-virtual-host      | ``/``         | The virtual host name to connect to
-username          | ``guest``     | The username to connect as
-password          | ``guest``     | The password to use when connecting
-queue             |               | **Required** field specifying the name of the queue to consume from
-auto-ack          | ``false``     | Enable auto-acknowledgement for higher throughput with the chance of message loss
-requeuing         | ``false``     | Instruct the broker to discard or requeue failed (rejected) messages
-prefetch-count     | ``0``         | The ``Basic.QoS`` prefetch count to specify for consuming
-timeout           | ``-1``        | The timeout the consumer will wait for rabbitmq to deliver a message before retrying
-threads           | ``1``         | The number of consumer threads to create
+| Variable       | Default       | Description                                                                          |
+| -------------- | ------------- | ------------------------------------------------------------------------------------ |
+| host           | ``localhost`` | The RabbitMQ host to connect to                                                      |
+| port           | ``5672``      | The port to connect on                                                               |
+| ssl            | ``false``     | Connect to RabbitMQ via SSL                                                          |
+| virtual-host   | ``/``         | The virtual host name to connect to                                                  |
+| username       | ``guest``     | The username to connect as                                                           |
+| password       | ``guest``     | The password to use when connecting                                                  |
+| queue          |               | **Required** field specifying the name of the queue to consume from                  |
+| auto-ack       | ``false``     | Enable auto-acknowledgement for higher throughput with the chance of message loss    |
+| requeuing      | ``false``     | Instruct the broker to discard or requeue failed (rejected) messages                 |
+| prefetch-count | ``0``         | The ``Basic.QoS`` prefetch count to specify for consuming                            |
+| timeout        | ``-1``        | The timeout the consumer will wait for rabbitmq to deliver a message before retrying |
+| threads        | ``1``         | The number of consumer threads to create                                             |
 
 #### Possible event header keys
 
@@ -96,19 +96,20 @@ a1.sources.r1.prefetchCount = 10
 ### Sink
 The RabbitMQ Sink allows for Flume events to be published to RabbitMQ.
 
-Variable           | Default       | Description
------------------- | ------------- | -----------
-host               | ``localhost`` | The RabbitMQ host to connect to
-port               | ``5672``      | The port to connect on
-ssl                | ``false``     | Connect to RabbitMQ via SSL
-virtual-host       | ``/``         | The virtual host name to connect to
-username           | ``guest``     | The username to connect as
-password           | ``guest``     | The password to use when connecting
-exchange           | ``amq.topic`` | The exchange to publish the message to
-routing-key        |               | The routing key to use when publishing
-auto-properties    | ``true``      | Automatically populate AMQP message properties
-mandatory-publish  | ``false``     | Enable mandatory publishing
-publisher-confirms | ``false``     | Enable publisher confirmations
+| Variable           | Default           | Description                                    |
+| ------------------ | ----------------- | ---------------------------------------------- |
+| host               | ``localhost``     | The RabbitMQ host to connect to                |
+| port               | ``5672``          | The port to connect on                         |
+| ssl                | ``false``         | Connect to RabbitMQ via SSL                    |
+| virtual-host       | ``/``             | The virtual host name to connect to            |
+| username           | ``guest``         | The username to connect as                     |
+| password           | ``guest``         | The password to use when connecting            |
+| exchange           | ``amq.topic``     | The exchange to publish the message to         |
+| queue-name         | ``delayed_queue`` | The queue to publish the message to            |
+| routing-key        |                   | The routing key to use when publishing         |
+| auto-properties    | ``true``          | Automatically populate AMQP message properties |
+| mandatory-publish  | ``false``         | Enable mandatory publishing                    |
+| publisher-confirms | ``false``         | Enable publisher confirmations                 |
 
 #### Headers
 When publishing an event message, the RabbitMQ Sink will first look to the event
