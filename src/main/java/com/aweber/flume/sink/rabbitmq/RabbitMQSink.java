@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 public class RabbitMQSink extends AbstractSink implements Configurable {
@@ -122,22 +123,18 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
                 counterGroup.incrementAndGet(EVENT_RECEIVED);
                 publishMessage(event);
                 counterGroup.incrementAndGet(EVENT_PUBLISHED);
-
             }
             transaction.commit();
-
         } catch (ChannelException ex) {
             counterGroup.incrementAndGet(EXCEPTION_CHANNEL);
             transaction.rollback();
             status = Status.BACKOFF;
             logger.error("Unable to get event from channel. Exception follows.", ex);
-
         } catch (EventDeliveryException ex) {
             counterGroup.incrementAndGet(EXCEPTION_DELIVERY);
             transaction.rollback();
             status = Status.BACKOFF;
             logger.error("Delivery exception: {}", ex);
-
         } finally {
             transaction.close();
         }
@@ -161,15 +158,13 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         super.stop();
     }
 
-
     private void closeRabbitMQConnection() {
         if (rmqChannel != null) {
             try {
                 rmqChannel.close();
             } catch (IOException ex) {
                 logger.error("Could not close the RabbitMQ Channel: {}", ex.toString());
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
                 throw new IllegalArgumentException("WTF Could not connect to RabbitMQ: General exception - " + ex.toString());
             }
         }
@@ -205,11 +200,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         if (sslEnabled) {
             try {
                 factory.useSslProtocol();
-            } catch (NoSuchAlgorithmException ex) {
-                counterGroup.incrementAndGet(RABBITMQ_EXCEPTION_SSL);
-                logger.error("Could not enable SSL: {}", ex.toString());
-                throw new EventDeliveryException("Could not Enable SSL: " + ex.toString());
-            } catch (KeyManagementException ex) {
+            } catch (NoSuchAlgorithmException | KeyManagementException ex) {
                 counterGroup.incrementAndGet(RABBITMQ_EXCEPTION_SSL);
                 logger.error("Could not enable SSL: {}", ex.toString());
                 throw new EventDeliveryException("Could not Enable SSL: " + ex.toString());
@@ -220,14 +211,14 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         } catch (IOException ex) {
             counterGroup.incrementAndGet(RABBITMQ_EXCEPTION_CONNECTION);
             throw new EventDeliveryException(ex.toString());
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             throw new IllegalArgumentException("Sink: Could not connect to RabbitMQ: General exception - " + ex.toString());
         }
     }
 
     private AMQP.BasicProperties createProperties(Map<String, String> headers) {
         AMQP.BasicProperties.Builder builder = new AMQP.BasicProperties.Builder();
+
         if (autoProperties) {
 
             if (headers.containsKey(APP_ID_KEY)) {
@@ -284,6 +275,14 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
                 builder.userId(headers.get(USER_ID_KEY));
             }
         }
+
+        if (headers.containsKey("x-delay")) {
+            Map<String, Object> delayHeaders = new HashMap<>();
+            delayHeaders.put("x-delay", 1000 * Integer.parseInt(headers.get("x-delay")));
+
+            builder.headers(delayHeaders);
+        }
+
         return builder.build();
     }
 
@@ -324,6 +323,19 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         }
 
         try {
+            Map<String, Object> exchangeMap = new HashMap<>();
+            // exchangeMap.put("x-delayed-type", "direct");
+            exchangeMap.put("x-delayed-type", "fanout");
+
+            Map<String, Object> mapQueue = new HashMap<>();
+            mapQueue.put("x-dead-letter-exchange", "delayed");
+
+            logger.info("Message (x-delay: {}s)", headers.get("x-delay"));
+            logger.info("{}", headers);
+
+            rmqChannel.exchangeDeclare(exchange, "x-delayed-message", true, false, exchangeMap);
+            rmqChannel.queueDeclare("delayed_queue", false, false, false, mapQueue);
+            rmqChannel.queueBind("delayed_queue", exchange, "");
             rmqChannel.basicPublish(exchange, rk, mandatory, createProperties(headers), event.getBody());
         } catch (IOException ex) {
             logger.error("Error publishing event message: {}", ex.toString());
@@ -343,5 +355,4 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
             throw new EventDeliveryException(ex.toString());
         }
     }
-
 }
